@@ -1,0 +1,276 @@
+# =============================================================================
+# Secrets & environment files  (NEVER commit)
+# =============================================================================
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+*.env
+*.env.local
+.envrc
+.direnv/
+
+# Secret stores / credentials
+secrets/
+secrets.*
+*.secret
+*.secrets
+credentials
+credentials.*
+*credentials*
+!*credentials*.example
+service-account*.json
+serviceAccount*.json
+*service_account*.json
+gcp-key*.json
+aws-credentials*
+.aws/
+.azure/
+.gcloud/
+.netrc
+.htpasswd
+
+# Keys / certs
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+*.jks
+*.keystore
+*.ovpn
+*.gpg
+*.asc
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+known_hosts
+authorized_keys
+
+# API keys / tokens (common patterns)
+apikey*
+api_key*
+api-keys*
+*token*.txt
+*token*.json
+!*token*.example
+
+# =============================================================================
+# Python
+# =============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+*.egg
+*.egg-info/
+.eggs/
+.installed.cfg
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.python-version
+pyvenv.cfg
+
+# Test / coverage / lint caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pytype/
+.pyre/
+.dmypy.json
+dmypy.json
+.tox/
+.nox/
+.hypothesis/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+*.py,cover
+htmlcov/
+nosetests.xml
+.cache/
+
+# Build artifacts
+dist/
+build/
+develop-eggs/
+downloads/
+eggs/
+sdist/
+wheels/
+share/python-wheels/
+*.whl
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Jupyter / IPython
+.ipynb_checkpoints/
+profile_default/
+ipython_config.py
+
+# =============================================================================
+# Node / Next.js / Frontend
+# =============================================================================
+node_modules/
+jspm_packages/
+.next/
+out/
+.nuxt/
+.svelte-kit/
+.vite/
+.turbo/
+.parcel-cache/
+*.tsbuildinfo
+next-env.d.ts
+
+# Package manager artifacts
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/sdks
+!.yarn/versions
+.pnpm-store/
+.npm/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+*.log
+logs/
+
+# Storybook / misc build outputs
+storybook-static/
+.docusaurus/
+.serverless/
+
+# =============================================================================
+# Local uploads / storage / data
+# =============================================================================
+backend/storage/*
+!backend/storage/.gitkeep
+!backend/storage/seed/
+!backend/storage/seed/**
+uploads/
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
+
+# Local databases / dumps
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.dump
+*.sql.gz
+dumps/
+data/local/
+
+# =============================================================================
+# ML / model weights
+# =============================================================================
+*.ckpt
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.onnx
+*.h5
+*.hdf5
+*.pkl
+*.pickle
+*.joblib
+models/local/
+checkpoints/
+wandb/
+mlruns/
+.neptune/
+
+# =============================================================================
+# Docker / containers / local volumes
+# =============================================================================
+.postgres_data/
+.pgdata/
+.mysql_data/
+.redis_data/
+.mongo_data/
+.qdrant_data/
+docker-compose.override.yml
+*.pid
+
+# =============================================================================
+# Alembic
+# =============================================================================
+backend/db/migrations/__pycache__/
+
+# =============================================================================
+# IDE / editors
+# =============================================================================
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.iml
+*.ipr
+*.iws
+.project
+.classpath
+.settings/
+*.sublime-workspace
+*.sublime-project
+.history/
+.vs/
+*.code-workspace
+
+# Vim / Emacs
+*.swp
+*.swo
+*.swn
+*~
+\#*\#
+.\#*
+
+# =============================================================================
+# OS
+# =============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# =============================================================================
+# Archives (usually not committed)
+# =============================================================================
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z

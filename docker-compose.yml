@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: avms-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: avms
+      POSTGRES_PASSWORD: avms
+      POSTGRES_DB: avms
+    ports:
+      - "5432:5432"
+    volumes:
+      - avms_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U avms -d avms"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  avms_pg_data:

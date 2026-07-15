@@ -1,0 +1,3 @@
+# Alembic keeps generated migration files in this folder.
+# The first migration will be created after Phase 0 setup with:
+#   alembic revision --autogenerate -m "init: users + pgvector"
