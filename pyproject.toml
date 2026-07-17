@@ -34,6 +34,9 @@ dependencies = [
     "pillow>=11.0",
     "numpy>=1.26",
 
+    # Document parsing (PDF ingestion for brand knowledge base)
+    "pypdf>=5.1",
+
     # HTTP
     "httpx>=0.27",
 

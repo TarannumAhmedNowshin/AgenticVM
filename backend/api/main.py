@@ -22,6 +22,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.routes_auth import router as auth_router
+from backend.api.routes_brands import router as brands_router
 from backend.api.routes_displays import router as displays_router
 from backend.config import get_settings
 from backend.workers.app import app as procrastinate_app
@@ -54,6 +55,7 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+app.include_router(brands_router)
 app.include_router(displays_router)
 
 

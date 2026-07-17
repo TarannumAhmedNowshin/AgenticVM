@@ -6,6 +6,12 @@ Idempotent: re-running updates the existing rows in place. Requires:
   * The `[ml]` extra installed for CLIP embeddings — otherwise embeddings
     are skipped and the matcher will simply return no matches.
 
+If `EMBED_API_KEY` / `EMBED_ENDPOINT` are configured, a small brand knowledge
+base is also seeded: a persona, three do/don't voice pairs, a mission
+statement, competitor list, and two reference images. Without those keys the
+script skips knowledge-base seeding cleanly so a bare-minimum smoke run
+still works.
+
 Product images are procedurally-drawn category silhouettes (t-shirt, bottle,
 shoe, etc.) with per-SKU colour variation. This gives CLIP enough visual
 signal to produce categorically-separable embeddings, unlike solid-colour
@@ -17,10 +23,12 @@ Run with:
 
 from __future__ import annotations
 
+import asyncio
 import colorsys
 import hashlib
 import logging
 from dataclasses import dataclass
+from io import BytesIO
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -102,6 +110,15 @@ def main() -> None:
         "with" if embeddings else "without",
     )
 
+    kb_seeded = _try_seed_knowledge_base(seed_dir)
+    if kb_seeded:
+        _LOG.info("Seeded demo-brand knowledge base (persona + voice + docs + images).")
+    else:
+        _LOG.info(
+            "Skipped brand knowledge base seeding "
+            "(EMBED_API_KEY / EMBED_ENDPOINT not configured)."
+        )
+
 
 def _upsert_brand(session) -> Brand:
     brand = session.scalar(select(Brand).where(Brand.slug == DEMO_BRAND_SLUG))
@@ -120,6 +137,15 @@ def _upsert_brand(session) -> Brand:
         )
         session.add(brand)
         session.flush()
+    # Always refresh the identity fields so bumping the seed data takes effect
+    # on re-run. This is a controlled demo dataset — safe to overwrite.
+    brand.palette_dominant_hex = ["#F4EBDD", "#1B1A1F", "#B4552C"]
+    brand.palette_accent_hex = ["#4A6B57", "#D9C89E"]
+    brand.typography = {
+        "display": "Söhne Breit",
+        "body": "Söhne",
+        "accent": "GT Alpina",
+    }
     return brand
 
 
@@ -412,6 +438,137 @@ def _try_embed(image_paths: dict[str, Path]) -> dict[str, list[float]] | None:
     skus = list(image_paths.keys())
     vectors = clip.embed_image([str(image_paths[s]) for s in skus])
     return dict(zip(skus, vectors, strict=True))
+
+
+# --- Knowledge base seeding ---------------------------------------------
+
+_PERSONA = (
+    "Elena — 32, urban creative living in a mid-sized city. Works in design "
+    "or a small studio. Cares about craft, provenance, and longevity. "
+    "Willing to spend on staples that last five years. Follows small "
+    "independent brands and avoids obvious logo-heavy pieces."
+)
+
+_VOICE_PAIRS: list[tuple[str, str]] = [
+    (
+        "Talk about the fabric weight, the seam construction, the wearer's "
+        "morning ritual with the piece.",
+        "Talk about hype, drops, sold-out counts, or influencer endorsements.",
+    ),
+    (
+        "Use warm inviting language: 'made for slow mornings', "
+        "'built to break in with you'.",
+        "Use urgency spam: 'BLOWOUT SALE', 'LAST CHANCE', all-caps shouty copy.",
+    ),
+    (
+        "Show the product in use — natural light, real hands, "
+        "unstyled contexts.",
+        "Use flat lays on neon backgrounds or heavily-retouched studio shots "
+        "that hide the product's texture.",
+    ),
+]
+
+_BRAND_DOC = (
+    "Demo Brand Co. is a modern retail brand centred on considered "
+    "craftsmanship. Every SKU passes a three-tier review: material sourcing, "
+    "construction integrity, and end-of-life reparability. Our visual "
+    "language leans on natural light, cream and ink backdrops, and "
+    "terracotta accents. In store, we prioritise clear eye-line focal "
+    "products, generous negative space, and cross-sell pairings that tell a "
+    "morning-ritual or evening-ritual story. Signage should feel handwritten "
+    "or letterpress in feel — never digital sans-serif. Prices are always "
+    "shown on a small kraft-paper tag, never a plastic shelf strip."
+)
+
+_COMPETITORS = ["Everlane", "Frank And Oak", "Kotn", "COS", "Muji"]
+
+
+def _try_seed_knowledge_base(seed_dir: Path) -> bool:
+    """Best-effort brand-knowledge seeding. No-op if Azure embeddings unset."""
+    settings = get_settings()
+    if not settings.embed_api_key or not settings.embed_endpoint:
+        return False
+
+    from backend.brand import ingestion
+    from backend.db.models import BrandAssetKind
+
+    logo_bytes, reference_bytes = _generate_reference_images(seed_dir)
+
+    async def _run() -> None:
+        with SessionLocal() as session:
+            brand = session.scalar(select(Brand).where(Brand.slug == DEMO_BRAND_SLUG))
+            if brand is None:
+                raise RuntimeError(
+                    "Demo brand row missing — run product seeding before knowledge base."
+                )
+
+            for do, dont in _VOICE_PAIRS:
+                await ingestion.ingest_voice_pair(
+                    brand=brand, do=do, dont=dont, session=session,
+                )
+
+            await ingestion.ingest_text(
+                brand=brand, text=_BRAND_DOC, source="brand_book.md",
+                session=session,
+            )
+            await ingestion.set_persona(
+                brand=brand, persona=_PERSONA, session=session,
+            )
+            await ingestion.set_competitors(
+                brand=brand, competitors=_COMPETITORS, session=session,
+            )
+
+            ingestion.ingest_image(
+                brand=brand,
+                image_bytes=logo_bytes,
+                source_name="logo.png",
+                session=session,
+                kind=BrandAssetKind.LOGO,
+            )
+            ingestion.ingest_image(
+                brand=brand,
+                image_bytes=reference_bytes,
+                source_name="reference_moodboard.png",
+                session=session,
+                caption="Cream + ink + terracotta moodboard swatch",
+                kind=BrandAssetKind.IMAGE,
+            )
+            session.commit()
+
+    asyncio.run(_run())
+    return True
+
+
+def _generate_reference_images(seed_dir: Path) -> tuple[bytes, bytes]:
+    """Render a simple wordmark logo and a palette-swatch moodboard image."""
+    logo = Image.new("RGB", (512, 256), (244, 235, 221))  # cream
+    draw = ImageDraw.Draw(logo)
+    # Wordmark rectangles (font-agnostic — the demo logo is stylised, not real text).
+    draw.rectangle((60, 100, 452, 156), fill=(27, 26, 31))     # ink slab
+    draw.rectangle((80, 118, 180, 138), fill=(244, 235, 221))  # cream cutout
+    draw.rectangle((200, 118, 300, 138), fill=(244, 235, 221))
+    draw.rectangle((320, 118, 432, 138), fill=(244, 235, 221))
+    draw.rectangle((60, 168, 452, 176), fill=(180, 85, 44))    # terracotta rule
+    logo_buffer = BytesIO()
+    logo.save(logo_buffer, format="PNG")
+    (seed_dir / "logo.png").write_bytes(logo_buffer.getvalue())
+
+    moodboard = Image.new("RGB", (768, 512), (244, 235, 221))
+    md = ImageDraw.Draw(moodboard)
+    swatches = [
+        (0, 0, 256, 256, (244, 235, 221)),
+        (256, 0, 512, 256, (27, 26, 31)),
+        (512, 0, 768, 256, (180, 85, 44)),
+        (0, 256, 384, 512, (74, 107, 87)),
+        (384, 256, 768, 512, (217, 200, 158)),
+    ]
+    for x0, y0, x1, y1, colour in swatches:
+        md.rectangle((x0, y0, x1, y1), fill=colour)
+    mb_buffer = BytesIO()
+    moodboard.save(mb_buffer, format="PNG")
+    (seed_dir / "moodboard.png").write_bytes(mb_buffer.getvalue())
+
+    return logo_buffer.getvalue(), mb_buffer.getvalue()
 
 
 if __name__ == "__main__":
